@@ -1,9 +1,17 @@
-// app/carrinho/confirmacao/page.tsx
+// app/carrinho/confirmacao/page.tsx (CÓDIGO CORRIGIDO FINAL)
+
 import Link from 'next/link';
 import { Suspense } from 'react';
 
+// O Next.js passa 'searchParams' como um objeto string | string[]
+type SearchParams = {
+    pedido?: string;
+    // Adicione outros parâmetros de busca que você queira usar aqui
+};
+
 // Componente principal para extrair os parâmetros da URL
-function ConfirmacaoContent({ searchParams }: { searchParams: { pedido: string } }) {
+// Corrigimos a tipagem para ser simples e compatível
+function ConfirmacaoContent({ searchParams }: { searchParams: SearchParams }) {
     const pedidoId = searchParams.pedido || 'N/A';
     const pixKey = "a-sua-chave-pix-aqui"; // <-- SUA CHAVE PIX REAL AQUI!
 
@@ -17,7 +25,7 @@ function ConfirmacaoContent({ searchParams }: { searchParams: { pedido: string }
                     Seu pedido **#{pedidoId}** foi registrado com sucesso. 
                     Aguardamos a confirmação do pagamento para enviar seus códigos!
                 </p>
-
+                
                 {/* INSTRUÇÕES DE PAGAMENTO */}
                 <h2 className="text-xl font-bold mb-3 text-nexus-blue">
                     1. Pague via PIX
@@ -44,8 +52,8 @@ function ConfirmacaoContent({ searchParams }: { searchParams: { pedido: string }
     );
 }
 
-// Wrap com Suspense para usar searchParams
-export default function ConfirmacaoPage({ searchParams }: { searchParams: { pedido: string } }) {
+// O componente de página agora recebe a tipagem correta de URL
+export default function ConfirmacaoPage({ searchParams }: { searchParams: SearchParams }) {
     return (
         <Suspense fallback={<div>Carregando confirmação...</div>}>
             <ConfirmacaoContent searchParams={searchParams} />
