@@ -1,13 +1,13 @@
 // components/Navbar.tsx (CÓDIGO 100% CORRIGIDO E FINAL)
 
 import Link from 'next/link';
-// IMPORTANTE: USAMOS O CLIENTE DE DADOS (LEITURA) para evitar o erro no Layout
 import { createServerSupabaseClientData } from '@/utils/supabase-server-data'; 
 import LogoutButton from './LogoutButton'; 
-// Ações de modificação (login/logout) estão importadas APENAS no arquivo de botão/ação, não aqui.
+import SearchBar from './SearchBar'; // Componente de Busca Responsiva
+import MobileSearchButton from './MobileSearchButton';
 
 export default async function Navbar() {
-  // 1. Cria o cliente Supabase Server (Leitura)
+  // Cria o cliente Supabase Server (Leitura) e checa o status de login
   const supabaseServer = createServerSupabaseClientData(); 
   const { data: { user } } = await supabaseServer.auth.getUser();
   const isLoggedIn = !!user; 
@@ -21,25 +21,14 @@ export default async function Navbar() {
           NEXUS
         </Link>
         
-        {/* 2. CAMPO DE BUSCA CENTRALIZADO (Apenas em Desktop) */}
-        <div className="flex-grow max-w-lg hidden md:block">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Digite o que você procura..."
-              className="w-full px-4 py-2 pl-10 border border-nexus-accent rounded-full bg-gray-900 text-white placeholder-gray-500 focus:ring-nexus-primary focus:border-nexus-primary"
-            />
-            <svg className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-          </div>
-        </div>
+        {/* 2. BUSCA RESPONSIVA */}
+        <SearchBar /> 
 
         {/* 3. ÍCONES DE AÇÃO */}
         <div className="flex items-center space-x-4 ml-4">
           
-          {/* ÍCONE DE BUSCA MOBILE (Aparece em Mobile, some em Desktop) */}
-          <button className="text-gray-400 hover:text-nexus-primary md:hidden">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-          </button>
+          {/* ÍCONE DE BUSCA MOBILE (Ativa a barra de pesquisa) */}
+          <MobileSearchButton />
 
           {/* Link Fixo: Precisa de ajuda? */}
           <Link href="/produtos" className="text-sm text-gray-400 hover:text-nexus-primary transition duration-150 hidden lg:block">
@@ -49,16 +38,16 @@ export default async function Navbar() {
           {/* Icone Minha Conta / Login */}
           {isLoggedIn ? (
             <>
-              {/* Ícone Minha Conta */}
+              {/* Ícone Minha Conta (Perfil/Cabeça e Ombros) */}
               <Link href="/minha-conta" className="text-gray-400 hover:text-nexus-primary transition duration-150 flex items-center space-x-1">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14c-4.418 0-8 3.582-8 8h16c0-4.418-3.582-8-8-8z" /></svg>
               </Link>
             </>
           ) : (
-            // Icone Login
+            // Icone Login (SVG CHAVE - Corrigido o bug de renderização no celular)
             <> 
               <Link href="/auth/login" className="flex items-center text-gray-400 hover:text-nexus-primary transition duration-150 space-x-1">
-                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3v-1a3 3 0 013-3h7a3 3 0 013 3z" /></svg>
+                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7l-6 6m2 2l-6 6M10 14l2 2m-1-5l2 2m-4-2l2 2m-6 4a4 4 0 110-8 4 4 0 010 8zm8-12a4 4 0 110-8 4 4 0 010 8z" /></svg>
               </Link>
             </>
           )}
