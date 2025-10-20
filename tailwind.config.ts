@@ -11,9 +11,10 @@ const config: Config = {
     extend: {
       colors: {
         // Cores Temáticas NEXUS Gamer
-        'nexus-blue': '#00BFFF',
-        'nexus-primary': '#FF4500',
-        'nexus-secondary': '#39FF14', 
+        'nexus-dark': '#ff0404ff',      // Preto Fosco (Fundo Principal)
+        'nexus-primary': '#00ff00',   // Verde Neon (O Glow)
+        'nexus-secondary': '#d9d9d9', // Cinza Prata/Metálico (Para texto e bordas)
+        'nexus-accent': '#666666',    // Cinza Escuro (Bordas de Cartões) 
       },
     },
   },

@@ -1,11 +1,10 @@
-// components/ProdutoCard.tsx
-// Este é um componente de SERVIDOR, que agora atua como um link simples
+// components/ProdutoCard.tsx (CÓDIGO COMPLETO E FINAL)
 
 import React from 'react';
-import Link from 'next/link'; // Importe o componente Link
+import Link from 'next/link'; 
 
-// Definição da interface (importada pelo Catálogo)
-export interface Produto {
+// Definição da interface
+export interface Produto { 
   id: number;
   nome: string;
   preco: number;
@@ -15,22 +14,32 @@ export interface Produto {
 
 const ProdutoCard: React.FC<{ produto: Produto }> = ({ produto }) => {
   return (
-    <div className="border p-4 rounded-lg shadow-lg bg-gray-800 text-white flex flex-col justify-between">
+    // Adiciona o text-nexus-secondary para o texto padrão ser visível
+    <div className="bg-gray-800 p-5 rounded-xl shadow-2xl border border-gray-700 
+                    hover:border-nexus-blue transition duration-300 transform hover:scale-[1.02] 
+                    flex flex-col justify-between text-center text-nexus-secondary"> 
       <div>
-        <h2 className="text-xl font-bold text-nexus-primary">{produto.nome}</h2>
-        <p className="text-sm text-gray-400 mb-2 min-h-12">{produto.descricao}</p>
+        {/* Título: Usa o Verde Neon para destaque */}
+        <h2 className="text-2xl font-bold mb-2 text-nexus-primary uppercase truncate"> 
+            {produto.nome}
+        </h2>
+        
+        {/* Descrição: Padrão Cinza Claro */}
+        <p className="text-sm mb-4 min-h-12">
+            {produto.descricao}
+        </p>
       </div>
       <div>
-        <p className="text-2xl font-extrabold text-green-400 mt-2">
-          R$ {produto.preco ? produto.preco.toFixed(2).replace('.', ',') : '0,00'}
+        <p className="text-3xl font-extrabold text-green-400 mt-2 mb-4">
+          {produto.preco ? `R$ ${produto.preco.toFixed(2).replace('.', ',')}` : 'GRÁTIS'}
         </p>
         
-        {/* O BOTÃO AGORA É UM LINK DIRETO PARA O CHECKOUT */}
         <Link 
           href="/carrinho/checkout" 
-          className="mt-4 w-full bg-nexus-secondary hover:bg-opacity-80 text-black font-bold py-2 rounded transition duration-150 text-center block"
+          className="w-full bg-nexus-secondary text-black font-extrabold py-3 rounded-lg 
+                     shadow-lg hover:shadow-nexus-secondary transition duration-150 block uppercase"
         >
-          Comprar Agora (NTFY Teste)
+          COMPRAR AGORA
         </Link>
       </div>
     </div>

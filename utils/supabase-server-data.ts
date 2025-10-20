@@ -13,10 +13,9 @@ export function createServerSupabaseClientData() {
     {
       cookies: {
         // FUNÇÃO DE LEITURA (get)
+        // @ts-ignore
         get(name: string) { return cookieStore.get(name)?.value; },
-        
-        // As funções set, remove e getAll são omitidas para evitar
-        // o erro de tipagem persistente no Vercel/Next.js.
+        // set, remove e getAll são omitidos para que o Next.js não reclame de modificação no layout
       },
     }
   );
