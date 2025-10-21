@@ -151,3 +151,81 @@ export async function createOrder(
 
     return { error: null, pedidoId: pedido.id };
 }
+// utils/authActions.ts (ADICIONAR FUNÇÃO DE ADMIN)
+
+/**
+ * Função de Admin para liberar a próxima chave de produto
+ */
+export async function releaseCode(pedidoId: number, produtoId: number): Promise<AuthResponse> {
+    'use server';
+
+    const supabase = createSupabaseAuthClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // 1. CHECAGEM DE ADMIN (Segurança)
+    if (!user || user.app_metadata.role !== 'admin') {
+        return { error: 'Acesso negado. Apenas administradores podem liberar códigos.' };
+    }
+
+    // 2. BUSCAR CHAVE DISPONÍVEL (Tabela chaves_de_produto)
+    const { data: chave, error: chaveError } = await supabase
+        .from('chaves_de_produto')
+        .select('chave_mestra, chaves_secundarias')
+        .eq('produto_id', produtoId)
+        .eq('disponivel', true)
+        .maybeSingle(); // Pega a primeira chave mestra disponível
+
+    if (chaveError || !chave || chave.chaves_secundarias.length === 0) {
+        return { error: 'Chave principal esgotada ou não encontrada. Recarregue o estoque.' };
+    }
+
+    // 3. EXTRAIR A PRÓXIMA CHAVE SECUNDÁRIA
+    const [proximaChave, ...chavesRestantes] = chave.chaves_secundarias;
+
+    if (!proximaChave) {
+        return { error: 'Não há chaves secundárias disponíveis neste estoque.' };
+    }
+
+    // 4. ATUALIZAR O ESTOQUE E O PEDIDO (Transação simulada)
+    
+    // a) Atualiza a tabela de chaves (REMOVE A CHAVE USADA)
+    const { error: stockUpdateError } = await supabase
+        .from('chaves_de_produto')
+        .update({ 
+            chaves_secundarias: chavesRestantes, // Salva o array sem a chave usada
+            disponivel: chavesRestantes.length > 0 // Marca como indisponível se o array estiver vazio
+        })
+        .eq('produto_id', produtoId);
+
+    if (stockUpdateError) {
+        return { error: 'Falha ao atualizar o estoque.' };
+    }
+
+    // b) Atualiza a tabela de pedidos (MARCA COMO ENTREGUE e salva a chave)
+    const { error: orderUpdateError } = await supabase
+        .from('pedidos')
+        .update({ 
+            status: 'entregue',
+            codigos_entregues: [proximaChave] // Salva o código que o cliente recebeu
+        })
+        .eq('id', pedidoId);
+
+    if (orderUpdateError) {
+        return { error: 'Falha ao atualizar status do pedido.' };
+    }
+
+    // 5. ENVIAR NOTIFICAÇÃO REAL (NTFY) PARA O ADMIN
+    const ntfyTitle = `✅ CHAVE LIBERADA #${pedidoId}`;
+    await fetch(`https://ntfy.sh/notificacao_de_compra_no_nexus_game`, { 
+        method: 'POST',
+        body: `Pedido #${pedidoId} liberado. Chave: ${proximaChave}. Estoque restante: ${chavesRestantes.length}`,
+        headers: { 'Title': ntfyTitle, 'Priority': 'low', 'Tags': 'check' }
+    });
+
+
+    return { 
+        error: null, 
+        message: `Chave liberada com sucesso: ${proximaChave}. O estoque foi atualizado.`,
+        // O cliente verá essa chave no Minha Conta
+    };
+}

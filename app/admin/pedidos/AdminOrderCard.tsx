@@ -1,7 +1,8 @@
-// app/admin/pedidos/AdminOrderCard.tsx
+// app/admin/pedidos/AdminOrderCard.tsx (CÓDIGO COMPLETO PARA GESTÃO DE PEDIDOS)
 'use client'; 
-import { useState } from 'react';
-// Nota: A função de envio (releaseCode) será criada no authActions.ts
+import React, { useState } from 'react';
+import { releaseCode } from '@/utils/authActions'; 
+import Link from 'next/link';
 
 // Tipos (simples, ajuste conforme o order do page.tsx)
 interface Order {
@@ -10,41 +11,40 @@ interface Order {
   status: string;
   valor_total: number;
   contato_whatsapp: string;
-  itens_comprados: Array<any>;
+  itens_comprados: Array<{ id: number; nome: string; quantidade: number }>;
   cliente_id: string;
 }
 
 export default function AdminOrderCard({ order }: { order: Order }) {
   const [status, setStatus] = useState(order.status);
-  const [chaveMestra, setChaveMestra] = useState('');
-  const [senhaMestra, setSenhaMestra] = useState('');
-  const [chaveLiberada, setChaveLiberada] = useState('');
   const [mensagem, setMensagem] = useState('');
 
-  // 🚨 FUNÇÃO DE ENVIO DE CÓDIGO (Será conectada ao Server Action)
+  // Função para formatar preço (R$ 49,00)
+  const formatPrice = (price: number) => 
+    `R$ ${price.toFixed(2).replace('.', ',')}`;
+  
+  // Função que será executada ao clicar no botão de Aprovar
   const handleRelease = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMensagem('Processando liberação...');
+    setMensagem('Processando liberação e verificando estoque...');
 
-    // 1. Lógica do Backend (Server Action) virá aqui:
-    //    a) Buscar a próxima chave disponível (Chave Secundária).
-    //    b) Marcar no chaves_de_produto que essa chave secundária foi usada.
-    //    c) Atualizar o status do pedido para 'APROVADO'.
-    //    d) Enviar NOTIFICAÇÃO de CÓDIGO REAL para o cliente.
+    // Assumimos que o primeiro item do pedido é o produto que queremos liberar a chave
+    const produtoId = order.itens_comprados[0]?.id; 
 
-    // Simulação do resultado:
-    const resultadoSimulado = {
-      success: true, 
-      // O backend retornaria a chave mestra e a chave secundária liberada
-      // chaveLiberada: 'ContaSecundaria@cliente03', 
-      // chaveMestra: 'rdr2@master.com'
-    };
+    if (!produtoId) {
+        setMensagem('❌ Erro: Produto não identificado no pedido.');
+        return;
+    }
 
-    if (resultadoSimulado.success) {
-       setMensagem('✅ Pedido APROVADO! Chave Liberada e Cliente Notificado.');
-       setStatus('APPROVED');
+    // CHAMA O SERVER ACTION REAL
+    const response = await releaseCode(order.id, produtoId); 
+
+    if (response.error) {
+        setMensagem(`❌ Erro: ${response.error}`);
     } else {
-       setMensagem('❌ Erro: Chave não encontrada ou erro no DB.');
+        setMensagem(`✅ ${response.message || 'Chave liberada e status atualizado.'}`);
+        setStatus('entregue'); // Atualiza o status localmente para 'entregue'
+        // NOTA: Em um app real, você faria um refresh da página aqui.
     }
   };
 
@@ -54,28 +54,28 @@ export default function AdminOrderCard({ order }: { order: Order }) {
       <div className="flex justify-between items-center border-b border-gray-700 pb-3 mb-4">
         <h3 className="text-2xl font-bold text-nexus-secondary">Pedido #{order.id}</h3>
         <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
-            status === 'APPROVED' ? 'bg-green-600' : status === 'PENDING' ? 'bg-yellow-600' : 'bg-red-600'
+            status === 'entregue' ? 'bg-green-600' : status.includes('pendente') ? 'bg-yellow-600 text-black' : 'bg-red-600'
         }`}>
-          {status}
+          {status.toUpperCase().replace('_', ' ')}
         </span>
       </div>
 
       <p className="text-lg mb-2">
-        Cliente: <span className="font-semibold text-white">{order.itens_comprados[0]?.nome || order.cliente_id}</span>
+        Cliente ID: <span className="font-semibold text-white">{order.cliente_id.substring(0, 8)}...</span>
       </p>
       <p className="text-lg mb-4">
-        WhatsApp: <a href={`https://wa.me/${order.contato_whatsapp}`} target="_blank" className="text-nexus-blue hover:underline">{order.contato_whatsapp}</a>
+        WhatsApp: <a href={`https://wa.me/55${order.contato_whatsapp.replace(/\D/g, '')}`} target="_blank" className="text-nexus-blue hover:underline">{order.contato_whatsapp}</a>
       </p>
 
-      <p className="text-lg font-bold text-nexus-primary">Total: R$ {order.valor_total.toFixed(2).replace('.', ',')}</p>
-
+      <p className="text-lg font-bold text-nexus-primary">Total: {formatPrice(order.valor_total)}</p>
+      
       <p className="text-sm text-gray-500 mt-4">Itens: {order.itens_comprados.map(i => `${i.nome} (x${i.quantidade})`).join(', ')}</p>
 
       {/* ÁREA DE APROVAÇÃO E ENVIO */}
-      {status === 'PENDING' && (
+      {status === 'pendente_pagamento' && (
         <form onSubmit={handleRelease} className="mt-6 p-4 border border-yellow-600/50 rounded-lg space-y-4">
           <p className='text-sm text-yellow-300'>{mensagem || 'Aguardando pagamento e liberação da chave.'}</p>
-
+          
           <button
             type="submit"
             className="w-full py-2 bg-nexus-secondary text-black font-bold rounded-md hover:bg-opacity-90"
@@ -85,10 +85,13 @@ export default function AdminOrderCard({ order }: { order: Order }) {
         </form>
       )}
 
-      {status === 'APPROVED' && (
+      {status === 'entregue' && (
         <div className='mt-6 p-4 bg-green-900/50 border border-green-700 rounded-lg'>
-            <p className='font-semibold text-green-300'>CHAVE LIBERADA COM SUCESSO.</p>
-            <p className='text-xs text-gray-400 mt-1'>O cliente foi notificado com as chaves mestras e secundárias via WhatsApp.</p>
+            <p className='font-semibold text-green-300'>{mensagem || 'CHAVE LIBERADA COM SUCESSO.'}</p>
+            <p className='text-xs text-gray-400 mt-1'>O cliente foi notificado. Confirme o envio do comprovante.</p>
+            <Link href={`https://wa.me/55${order.contato_whatsapp.replace(/\D/g, '')}`} target="_blank" className="text-sm text-green-100 hover:underline mt-2 inline-block">
+                Reenviar WhatsApp de Confirmação
+            </Link>
         </div>
       )}
     </div>

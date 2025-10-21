@@ -13,8 +13,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "noEmitOnError": false,
-    "skipLibCheck": true,
-    "incremental": true,
+        "incremental": true,
     "plugins": [
       {
         "name": "next"
