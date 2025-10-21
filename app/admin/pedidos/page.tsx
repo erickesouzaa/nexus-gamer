@@ -1,9 +1,9 @@
-// app/admin/pedidos/page.tsx
-// Este é um Server Component para buscar todos os pedidos.
+// app/admin/pedidos/page.tsx (CÓDIGO COMPLETO COM CLIENTE DE LEITURA)
 
-import { createServerSupabaseClientActions } from '@/utils/supabase-server-actions'; 
+// IMPORTANTE: O CLIENTE DE LEITURA
+import { createServerSupabaseClientData } from '@/utils/supabase-server-data'; 
 import { redirect } from 'next/navigation';
-import AdminOrderCard from './AdminOrderCard'; // Vamos criar este componente
+import AdminOrderCard from './AdminOrderCard'; 
 
 // Tipos necessários
 interface Order {
@@ -12,26 +12,26 @@ interface Order {
   status: string;
   valor_total: number;
   contato_whatsapp: string;
-  itens_comprados: Array<{ id: number; nome: string; quantidade: number }>;
+  itens_comprados: Array<any>;
   cliente_id: string;
 }
 
 export default async function AdminPedidosPage() {
-  const supabaseServer = createServerSupabaseClientActions();
-
-  // 🚨 SEGURANÇA BÁSICA: Redirecionar se não for Admin 🚨
-  // Por enquanto, vamos permitir acesso a qualquer usuário logado. 
-  // Depois, você implementará a verificação real de Admin/Roles.
+  // CRUCIAL: USAMOS O CLIENTE DE DADOS/LEITURA (Data)
+  const supabaseServer = createServerSupabaseClientData();
+  
+  // 🚨 1. CHECAGEM DE ADMIN (Segurança)
   const { data: { user } } = await supabaseServer.auth.getUser();
-  if (!user) {
+  // Esta checagem de role é segura porque o cliente 'Data' só LÊ cookies
+  if (!user || user.app_metadata.role !== 'admin') {
      redirect('/auth/login');
   }
 
-  // 1. BUSCAR TODOS OS PEDIDOS PENDENTES
+  // 2. BUSCAR TODOS OS PEDIDOS PENDENTES
   const { data: orders, error } = await supabaseServer
     .from('pedidos')
-    .select('*')
-    .order('created_at', { ascending: true }); // Pedidos mais antigos primeiro
+    .select('id, created_at, status, valor_total, contato_whatsapp, itens_comprados, cliente_id')
+    .order('created_at', { ascending: true }); 
 
   if (error) {
     console.error('Erro ao carregar pedidos:', error);
@@ -43,8 +43,6 @@ export default async function AdminPedidosPage() {
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl font-extrabold mb-4 text-nexus-primary">Painel NEXUS Admin</h1>
         <p className="text-lg text-gray-400 mb-8">Gestão de Pedidos e Liberação de Códigos Digitais.</p>
-
-        <h2 className="text-2xl font-bold mb-6 text-nexus-blue">Pedidos Pendentes ({orders?.length || 0})</h2>
 
         <div className="space-y-6">
           {orders?.length === 0 ? (

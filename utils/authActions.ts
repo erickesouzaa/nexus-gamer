@@ -1,14 +1,16 @@
-// utils/authActions.ts (AÇÕES DE AUTH E CHECKOUT FINAL)
+// utils/authActions.ts (CÓDIGO COMPLETO E FINALMENTE ESTÁVEL)
 
 'use server';
 
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClientActions } from './supabase-server-actions'; 
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { execa } from 'execa'; // <<< NOVO IMPORT
+import { execa } from 'execa'; 
 
-// Interface para os itens do carrinho (mesmo que simulemos)
+
+function createSupabaseAuthClient() {
+    return createServerSupabaseClientActions();
+}
+
 export interface CartItem {
   id: number;
   nome: string;
@@ -16,19 +18,74 @@ export interface CartItem {
   quantidade: number;
 }
 
-// Tópico NTFY
-const NTFY_TOPIC = "notificacao_de_compra_no_nexus_game";
-
-
-// Função auxiliar para criar o cliente de Auth (usado em todas as funções)
-function createSupabaseAuthClient() {
-    return createServerSupabaseClientActions();
-}
-
 type AuthResponse = {
   error: string | null;
   pedidoId?: number; 
+  message?: string; 
 };
+
+// --- FUNÇÃO CRÍTICA PARA O CHECKOUT (createOrder) ---
+
+/**
+ * Função para registrar o pedido no Supabase e notificar o administrador (NTFY)
+ */
+export async function createOrder(
+    formData: FormData, 
+    cartItems: CartItem[], 
+    totalValue: number
+): Promise<AuthResponse> {
+    'use server';
+
+    const supabase = createSupabaseAuthClient(); 
+    const supabaseDB = createSupabaseAuthClient(); 
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        return { error: 'Usuário não autenticado. Faça login para finalizar.' };
+    }
+
+    const whatsapp = formData.get('whatsapp') as string;
+    
+    // 1. REGISTRAR O PEDIDO NO SUPABASE
+    const { data: pedido, error: dbError } = await supabaseDB
+        .from('pedidos') 
+        .insert({
+            cliente_id: user.id,
+            status: 'pendente_pagamento',
+            valor_total: totalValue,
+            itens_comprados: cartItems, 
+            contato_whatsapp: whatsapp,
+            codigos_entregues: []
+        })
+        .select()
+        .single();
+
+    if (dbError || !pedido) {
+        console.error("Erro no DB ao criar pedido:", dbError);
+        return { error: 'Falha ao processar o pedido no sistema. Tente novamente.' };
+    }
+
+    // 2. NOTIFICAÇÃO MANUAL NTFY
+    const totalFormatado = `R$ ${totalValue.toFixed(2).replace('.', ',')}`;
+    const nomeCliente = user.user_metadata.nome || 'Cliente Não Nomeado';
+    const ntfyTitle = `🛒 NOVO PEDIDO NEXUS #${pedido.id}`;
+    const ntfyMessage = `Cliente: ${nomeCliente} | Total: ${totalFormatado} | Contato: ${whatsapp}`;
+
+    try {
+        await execa('curl', [
+            '-H', `Title: ${ntfyTitle}`, 
+            '-H', 'Priority: high',
+            '-H', 'Tags: money,cart', 
+            '-d', ntfyMessage,
+            `https://ntfy.sh/notificacao_de_compra_no_nexus_game`
+        ]);
+    } catch (ntfyError) {
+        console.error("Falha ao enviar NTFY (continuando...):", ntfyError);
+    }
+
+    return { error: null, pedidoId: pedido.id };
+}
 
 // --- FUNÇÕES DE AUTENTICAÇÃO (MANTIDAS) ---
 
@@ -86,80 +143,17 @@ export async function logout() {
     redirect('/');
 }
 
-// --- FUNÇÃO DE CHECKOUT (COM NTFY/cURL) ---
-
-/**
- * Função para registrar o pedido no Supabase e notificar o administrador (NTFY)
- */
-export async function createOrder(
-    formData: FormData, 
-    cartItems: CartItem[], 
-    totalValue: number
-): Promise<AuthResponse> {
-    
-    const supabase = createSupabaseAuthClient(); 
-    const supabaseDB = createServerSupabaseClientActions(); 
-
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-        return { error: 'Usuário não autenticado. Faça login para finalizar.' };
-    }
-
-    const whatsapp = formData.get('whatsapp') as string;
-    
-    // 1. REGISTRAR O PEDIDO NO SUPABASE
-    const { data: pedido, error: dbError } = await supabaseDB
-        .from('pedidos') 
-        .insert({
-            cliente_id: user.id,
-            status: 'pendente_pagamento',
-            valor_total: totalValue,
-            itens_comprados: cartItems, 
-            contato_whatsapp: whatsapp,
-            codigos_entregues: []
-        })
-        .select()
-        .single();
-
-    if (dbError || !pedido) {
-        console.error("Erro no DB ao criar pedido:", dbError);
-        return { error: 'Falha ao processar o pedido no sistema. Tente novamente.' };
-    }
-
-    // 2. NOTIFICAÇÃO MANUAL NTFY (USANDO cURL/execa PARA CONTORNAR ERRO DE REDE)
-    
-    const totalFormatado = `R$ ${totalValue.toFixed(2).replace('.', ',')}`;
-    const nomeCliente = user.user_metadata.nome || 'Cliente Não Nomeado';
-
-    const ntfyTitle = `💰 NOVO PEDIDO NEXUS #${pedido.id} - ${totalFormatado}`;
-    const ntfyMessage = `Cliente: ${nomeCliente} | WhatsApp: ${whatsapp} \nItens: ${cartItems.map(i => i.nome).join(', ')}`;
-
-    try {
-        await execa('curl', [
-            '-H', `Title: ${ntfyTitle}`, 
-            '-H', 'Priority: high',
-            '-H', 'Tags: money,cart', 
-            '-d', ntfyMessage,
-            `https://ntfy.sh/${NTFY_TOPIC}`
-        ]);
-        console.log("Notificação NTFY enviada com sucesso (via cURL).");
-    } catch (ntfyError) {
-        console.error("Falha ao enviar notificação NTFY (continuando...):", ntfyError);
-        // Opcional: Aqui você pode colocar a notificação do Discord como fallback!
-    }
-
-    return { error: null, pedidoId: pedido.id };
-}
-// utils/authActions.ts (ADICIONAR FUNÇÃO DE ADMIN)
+// --- FUNÇÃO DE ADMIN (releaseCode) ---
 
 /**
  * Função de Admin para liberar a próxima chave de produto
  */
-export async function releaseCode(pedidoId: number, produtoId: number): Promise<AuthResponse> {
+export async function releaseCode(pedidoId: number, produtoId: string): Promise<AuthResponse> {
     'use server';
 
-    const supabase = createSupabaseAuthClient();
+    const supabase = createSupabaseAuthClient(); 
+    const supabaseDB = createSupabaseAuthClient(); 
+
     const { data: { user } } = await supabase.auth.getUser();
 
     // 1. CHECAGEM DE ADMIN (Segurança)
@@ -168,45 +162,40 @@ export async function releaseCode(pedidoId: number, produtoId: number): Promise<
     }
 
     // 2. BUSCAR CHAVE DISPONÍVEL (Tabela chaves_de_produto)
-    const { data: chave, error: chaveError } = await supabase
+    const { data: chave, error: chaveError } = await supabaseDB
         .from('chaves_de_produto')
-        .select('chave_mestra, chaves_secundarias')
-        .eq('produto_id', produtoId)
+        .select('chave_mestra, senha_mestra')
+        .eq('produto_id', produtoId) 
         .eq('disponivel', true)
-        .maybeSingle(); // Pega a primeira chave mestra disponível
-
-    if (chaveError || !chave || chave.chaves_secundarias.length === 0) {
+        .maybeSingle(); 
+    
+    if (chaveError || !chave) {
         return { error: 'Chave principal esgotada ou não encontrada. Recarregue o estoque.' };
     }
 
-    // 3. EXTRAIR A PRÓXIMA CHAVE SECUNDÁRIA
-    const [proximaChave, ...chavesRestantes] = chave.chaves_secundarias;
-
-    if (!proximaChave) {
-        return { error: 'Não há chaves secundárias disponíveis neste estoque.' };
-    }
+    // 3. O CÓDIGO A SER ENVIADO É A PRÓPRIA CHAVE MESTRA E SENHA
+    const codigoCompleto = `Login: ${chave.chave_mestra} | Senha: ${chave.senha_mestra}`;
 
     // 4. ATUALIZAR O ESTOQUE E O PEDIDO (Transação simulada)
     
-    // a) Atualiza a tabela de chaves (REMOVE A CHAVE USADA)
-    const { error: stockUpdateError } = await supabase
+    // a) ATUALIZA A TABELA DE CHAVES (Marca a chave como indisponível/usada)
+    const { error: stockUpdateError } = await supabaseDB
         .from('chaves_de_produto')
         .update({ 
-            chaves_secundarias: chavesRestantes, // Salva o array sem a chave usada
-            disponivel: chavesRestantes.length > 0 // Marca como indisponível se o array estiver vazio
+            disponivel: false 
         })
-        .eq('produto_id', produtoId);
+        .eq('chave_mestra', chave.chave_mestra); 
 
     if (stockUpdateError) {
-        return { error: 'Falha ao atualizar o estoque.' };
+        return { error: 'Falha ao marcar chave como usada no estoque.' };
     }
 
-    // b) Atualiza a tabela de pedidos (MARCA COMO ENTREGUE e salva a chave)
-    const { error: orderUpdateError } = await supabase
+    // b) Atualiza a tabela de pedidos (MARCA COMO ENTREGUE e salva o código)
+    const { error: orderUpdateError } = await supabaseDB
         .from('pedidos')
         .update({ 
             status: 'entregue',
-            codigos_entregues: [proximaChave] // Salva o código que o cliente recebeu
+            codigos_entregues: [codigoCompleto]
         })
         .eq('id', pedidoId);
 
@@ -214,18 +203,23 @@ export async function releaseCode(pedidoId: number, produtoId: number): Promise<
         return { error: 'Falha ao atualizar status do pedido.' };
     }
 
-    // 5. ENVIAR NOTIFICAÇÃO REAL (NTFY) PARA O ADMIN
+    // 5. ENVIAR NOTIFICAÇÃO PARA O ADMIN (NTFY)
     const ntfyTitle = `✅ CHAVE LIBERADA #${pedidoId}`;
-    await fetch(`https://ntfy.sh/notificacao_de_compra_no_nexus_game`, { 
-        method: 'POST',
-        body: `Pedido #${pedidoId} liberado. Chave: ${proximaChave}. Estoque restante: ${chavesRestantes.length}`,
-        headers: { 'Title': ntfyTitle, 'Priority': 'low', 'Tags': 'check' }
-    });
+    try {
+        await execa('curl', [
+            '-H', `Title: ${ntfyTitle}`, 
+            '-H', 'Priority: high',
+            '-H', 'Tags: check', 
+            '-d', `Pedido #${pedidoId} liberado! Dados: ${codigoCompleto}`,
+            `https://ntfy.sh/notificacao_de_compra_no_nexus_game`
+        ]);
+    } catch (ntfyError) {
+        console.error("Falha ao enviar NTFY (continuando...):", ntfyError);
+    }
 
 
     return { 
         error: null, 
-        message: `Chave liberada com sucesso: ${proximaChave}. O estoque foi atualizado.`,
-        // O cliente verá essa chave no Minha Conta
+        message: `Código liberado com sucesso: ${codigoCompleto}.`,
     };
 }

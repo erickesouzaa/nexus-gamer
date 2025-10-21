@@ -1,4 +1,4 @@
-// app/admin/pedidos/AdminOrderCard.tsx (CÓDIGO COMPLETO PARA GESTÃO DE PEDIDOS)
+// app/admin/pedidos/AdminOrderCard.tsx (CÓDIGO COMPLETO COM CAMINHO CORRIGIDO)
 'use client'; 
 import React, { useState } from 'react';
 import { releaseCode } from '@/utils/authActions'; 
@@ -29,7 +29,7 @@ export default function AdminOrderCard({ order }: { order: Order }) {
     setMensagem('Processando liberação e verificando estoque...');
 
     // Assumimos que o primeiro item do pedido é o produto que queremos liberar a chave
-    const produtoId = order.itens_comprados[0]?.id; 
+    const produtoId = order.itens_comprados[0]?.id.toString(); 
 
     if (!produtoId) {
         setMensagem('❌ Erro: Produto não identificado no pedido.');
@@ -44,7 +44,6 @@ export default function AdminOrderCard({ order }: { order: Order }) {
     } else {
         setMensagem(`✅ ${response.message || 'Chave liberada e status atualizado.'}`);
         setStatus('entregue'); // Atualiza o status localmente para 'entregue'
-        // NOTA: Em um app real, você faria um refresh da página aqui.
     }
   };
 

@@ -1,4 +1,4 @@
-// app/carrinho/checkout/page.tsx
+// app/carrinho/checkout/page.tsx (CÓDIGO COMPLETO FINAL)
 'use client';
 
 import { createOrder, CartItem } from '@/utils/authActions';
@@ -6,11 +6,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-// DADOS SIMULADOS DE COMPRA (Um item fixo para teste)
+// DADOS SIMULADOS DE COMPRA CORRIGIDOS
 const SIMULATED_CART: CartItem[] = [{
-  id: 999,
-  nome: 'Pacote de Boost Épico (SIMULADO)',
-  preco: 120.00,
+  id: 1, // ID CORRETO: 1
+  nome: 'Red Dead Redemption 2', 
+  preco: 49.00, 
   quantidade: 1
 }];
 const SIMULATED_TOTAL = SIMULATED_CART[0].preco * SIMULATED_CART[0].quantidade;
@@ -24,22 +24,30 @@ export default function CheckoutPage() {
     const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Se o cliente não está logado, a Server Action falhará e o cliente será redirecionado para o login.
+    
     const handleCheckout = async (formData: FormData) => {
         setIsSubmitting(true);
         setMessage(null);
 
-        // 1. CHAMA A FUNÇÃO DE SERVIDOR createOrder
+        const currentWhatsapp = formData.get('whatsapp') as string;
+        if (!currentWhatsapp) {
+             setMessage({ type: 'error', text: 'Por favor, informe seu WhatsApp para o envio.' });
+             setIsSubmitting(false);
+             return;
+        }
+
+        // Chama a Server Action
         const response = await createOrder(formData, SIMULATED_CART, SIMULATED_TOTAL);
 
         if (response.error) {
-            // Se der erro, e for 'não autenticado', redireciona
             if (response.error.includes('autenticado')) {
                 router.push('/auth/login');
                 return;
             }
             setMessage({ type: 'error', text: response.error });
         } else {
-            // 2. SUCESSO: Redireciona para a tela de confirmação
+            // Sucesso: Redireciona para a tela de confirmação
             router.push(`/carrinho/confirmacao?pedido=${response.pedidoId}`);
         }
         setIsSubmitting(false);
@@ -57,7 +65,7 @@ export default function CheckoutPage() {
                         {message.text}
                     </div>
                 )}
-
+                
                 {/* 1. Detalhes do Pedido (Simulado) */}
                 <h2 className="text-xl font-bold mb-3 text-nexus-primary">Resumo do Pedido</h2>
                 <div className="space-y-2 mb-6 border-b border-gray-700 pb-4">
@@ -75,7 +83,7 @@ export default function CheckoutPage() {
                 {/* 2. Formulário de Checkout (Finalização) */}
                 <form action={handleCheckout} className="space-y-6">
                     <h2 className="text-xl font-bold mb-3 text-nexus-primary">Detalhes de Envio</h2>
-
+                    
                     <div>
                         <label htmlFor="whatsapp" className="block text-sm font-medium text-gray-300">
                             WhatsApp (Para envio do Código)
@@ -93,7 +101,7 @@ export default function CheckoutPage() {
                     </div>
 
                     <p className="text-sm text-gray-400 bg-gray-700 p-3 rounded">
-                        * Este é um pedido de TESTE. Se você estiver logado, ele enviará a notificação NTFY.
+                        * Este é um pedido de TESTE ({SIMULATED_CART[0].nome}). O código será enviado manualmente após o pagamento.
                     </p>
 
                     <button
