@@ -1,4 +1,4 @@
-// tailwind.config.ts (O novo arquivo)
+// tailwind.config.ts (CÓDIGO COMPLETO E FINAL)
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
@@ -10,11 +10,11 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Cores Temáticas NEXUS Gamer
-        'nexus-dark': '#ff0404ff',      // Preto Fosco (Fundo Principal)
-        'nexus-primary': '#00ff00',   // Verde Neon (O Glow)
-        'nexus-secondary': '#d9d9d9', // Cinza Prata/Metálico (Para texto e bordas)
-        'nexus-accent': '#666666',    // Cinza Escuro (Bordas de Cartões) 
+        // NOVO ESQUEMA DE CORES: PRETO TOTAL E CIANO
+        'nexus-dark': '#000000',      // Fundo (Preto Total)
+        'nexus-primary': '#00FFFF',   // Destaque/Glow (Ciano Elétrico)
+        'nexus-secondary': '#e2e8f0', // Texto (Cinza Prata Claro)
+        'nexus-accent': '#334155',    // Borda/Detalhe (Azul Metálico Escuro)
       },
     },
   },
