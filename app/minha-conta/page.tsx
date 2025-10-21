@@ -1,47 +1,61 @@
-// app/minha-conta/page.tsx (CÓDIGO 100% CORRIGIDO)
+// app/minha-conta/page.tsx (CÓDIGO COMPLETO FINAL E ESTÁVEL)
 
 import { createServerSupabaseClientData } from '@/utils/supabase-server-data'; 
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import LogoutButton from '@/components/LogoutButton';
-// import { format } from 'date-fns'; // Removido para evitar erro de dependência. Usaremos o new Date().toLocaleDateString()
 
-// --- TIPOS ---
-// Definição de Tipos para Tipagem Segura (Ajuste conforme sua tabela pedidos)
+// --- DEFINIÇÕES DE TIPOS E FUNÇÕES AUXILIARES ---
+
+// 1. Tipo de Item Comprado (CORRIGIDO: id é string/UUID)
 interface OrderItem {
-  id: number;
+  id: string; // <-- CORREÇÃO PRINCIPAL
   nome: string;
   preco: number;
   quantidade: number;
 }
 
+// 2. Tipo do Pedido 
 interface Order {
   id: number;
   created_at: string;
-  status: string; // Ex: 'pendente_pagamento', 'pago', 'entregue'
+  status: string;
   valor_total: number;
-  itens_comprados: OrderItem[];
+  contato_whatsapp: string;
+  itens_comprados: OrderItem[]; 
   cliente_id: string;
+  codigos_entregues: string[]; 
 }
-// -------------
+
+// 3. Função auxiliar para formatar preço
+const formatPrice = (price: number) => 
+    `R$ ${price.toFixed(2).replace('.', ',')}`;
+
+// 4. Função auxiliar para formatar data
+const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+};
+// ----------------------------------------------------
 
 
 export default async function MinhaContaPage() {
   
-  // 1. Cria o cliente Supabase Server
   const supabaseServer = createServerSupabaseClientData(); 
-
-  // 2. Obtém a sessão e o usuário diretamente (Corrige o erro de desestruturação)
   const { data: { user } } = await supabaseServer.auth.getUser(); 
 
-  if (!user) { // Redireciona se não houver usuário
+  if (!user) { // Proteção: Redireciona se não houver usuário logado
     redirect('/auth/login');
   }
   
-  // --- BUSCA DE DADOS (AGORA FUNCIONA) ---
+  // Lógica para extrair o Nome/Nickname
+  const userName = user.user_metadata.nome || user.email;
+
+  // --- BUSCA DE DADOS ---
   const { data: orders, error: ordersError } = await supabaseServer
     .from('pedidos')
-    .select('id, created_at, status, valor_total, itens_comprados, cliente_id')
+    .select('id, created_at, status, valor_total, itens_comprados, cliente_id, codigos_entregues')
     .eq('cliente_id', user.id) // Filtra apenas pelos pedidos do usuário logado
     .order('created_at', { ascending: false });
 
@@ -50,17 +64,6 @@ export default async function MinhaContaPage() {
     return <div className='text-red-500 p-8'>Erro ao carregar seus pedidos. Tente novamente.</div>;
   }
   // --- FIM DA BUSCA ---
-
-
-  // Lógica para extrair o Nome/Nickname
-  const userName = user.user_metadata.nome || user.email;
-
-  // Função simples para formatar data sem a biblioteca date-fns
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
-  };
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-8">
@@ -100,7 +103,7 @@ export default async function MinhaContaPage() {
                 </div>
 
                 <p className="text-lg font-medium mb-4">
-                  Total: R$ {order.valor_total.toFixed(2).replace('.', ',')}
+                  Total: {formatPrice(order.valor_total)}
                 </p>
 
                 <h3 className="text-md font-semibold mb-2 border-t border-gray-700 pt-3 text-gray-300">Itens Comprados:</h3>
@@ -110,11 +113,15 @@ export default async function MinhaContaPage() {
                   ))}
                 </ul>
 
-                {/* Área do Código de Resgate (Placeholder) */}
-                {order.status === 'entregue' && (
+                {/* Área do Código de Resgate (EXIBE O VALOR REAL) */}
+                {order.status === 'entregue' && order.codigos_entregues && order.codigos_entregues.length > 0 && (
                     <div className="mt-4 p-3 bg-green-900/50 border border-green-700 rounded-md">
                         <p className="font-semibold text-green-300">CÓDIGO DE RESGATE:</p>
-                        <p className="text-lg font-mono text-green-100">XXX-ABC-1234 (Placeholder)</p>
+                        {/* EXIBE O LOGIN E SENHA REAL SALVO NO ARRAY */}
+                        <p className="text-lg font-mono text-green-100">
+                            {order.codigos_entregues[0]} 
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">Este é o seu login e senha da conta digital.</p>
                     </div>
                 )}
               </div>

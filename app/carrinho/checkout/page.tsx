@@ -8,7 +8,7 @@ import Link from 'next/link';
 
 // DADOS SIMULADOS DE COMPRA CORRIGIDOS
 const SIMULATED_CART: CartItem[] = [{
-  id: 1, // ID CORRETO: 1
+  id: 'a491f645-7370-46d4-a1f8-8d34d7ab4478', 
   nome: 'Red Dead Redemption 2', 
   preco: 49.00, 
   quantidade: 1

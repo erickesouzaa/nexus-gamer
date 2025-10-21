@@ -1,17 +1,18 @@
-// app/admin/pedidos/AdminOrderCard.tsx (CÓDIGO COMPLETO COM CAMINHO CORRIGIDO)
+// app/admin/pedidos/AdminOrderCard.tsx (CÓDIGO COMPLETO PARA GESTÃO DE PEDIDOS)
 'use client'; 
 import React, { useState } from 'react';
 import { releaseCode } from '@/utils/authActions'; 
 import Link from 'next/link';
 
-// Tipos (simples, ajuste conforme o order do page.tsx)
+// Tipos (ajustados para a nova estrutura UUID/String)
 interface Order {
   id: number;
   created_at: string;
   status: string;
   valor_total: number;
   contato_whatsapp: string;
-  itens_comprados: Array<{ id: number; nome: string; quantidade: number }>;
+  // O ID do produto no pedido agora deve ser lido como string (UUID)
+  itens_comprados: Array<{ id: string; nome: string; quantidade: number }>; 
   cliente_id: string;
 }
 
@@ -29,7 +30,8 @@ export default function AdminOrderCard({ order }: { order: Order }) {
     setMensagem('Processando liberação e verificando estoque...');
 
     // Assumimos que o primeiro item do pedido é o produto que queremos liberar a chave
-    const produtoId = order.itens_comprados[0]?.id.toString(); 
+    // CORREÇÃO: Pegamos o ID diretamente como string (UUID)
+    const produtoId = order.itens_comprados[0]?.id; 
 
     if (!produtoId) {
         setMensagem('❌ Erro: Produto não identificado no pedido.');
@@ -37,6 +39,7 @@ export default function AdminOrderCard({ order }: { order: Order }) {
     }
 
     // CHAMA O SERVER ACTION REAL
+    // NOTA: produtoId é passado como string (UUID)
     const response = await releaseCode(order.id, produtoId); 
 
     if (response.error) {

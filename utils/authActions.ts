@@ -1,4 +1,4 @@
-// utils/authActions.ts (CÓDIGO COMPLETO E FINALMENTE ESTÁVEL)
+// utils/authActions.ts (CÓDIGO COMPLETO COM INTERFACE CORRIGIDA)
 
 'use server';
 
@@ -11,8 +11,9 @@ function createSupabaseAuthClient() {
     return createServerSupabaseClientActions();
 }
 
-export interface CartItem {
-  id: number;
+// CRÍTICO: INTERFACE CORRIGIDA PARA USAR STRING (UUID) NO ID
+export interface CartItem { 
+  id: string; // <-- CORREÇÃO PRINCIPAL
   nome: string;
   preco: number;
   quantidade: number;
@@ -24,11 +25,8 @@ type AuthResponse = {
   message?: string; 
 };
 
-// --- FUNÇÃO CRÍTICA PARA O CHECKOUT (createOrder) ---
+// --- FUNÇÕES DE CHECKOUT/ADMIN (MANTIDAS) ---
 
-/**
- * Função para registrar o pedido no Supabase e notificar o administrador (NTFY)
- */
 export async function createOrder(
     formData: FormData, 
     cartItems: CartItem[], 
@@ -129,6 +127,10 @@ export async function login(formData: FormData): Promise<AuthResponse> {
     const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: {
+            // Solução para o bug de ambiente local
+            redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/minha-conta`
+        }
     });
 
     if (error) {
@@ -145,9 +147,6 @@ export async function logout() {
 
 // --- FUNÇÃO DE ADMIN (releaseCode) ---
 
-/**
- * Função de Admin para liberar a próxima chave de produto
- */
 export async function releaseCode(pedidoId: number, produtoId: string): Promise<AuthResponse> {
     'use server';
 
@@ -156,15 +155,15 @@ export async function releaseCode(pedidoId: number, produtoId: string): Promise<
 
     const { data: { user } } = await supabase.auth.getUser();
 
-    // 1. CHECAGEM DE ADMIN (Segurança)
+    // 1. CHECAGEM DE ADMIN
     if (!user || user.app_metadata.role !== 'admin') {
         return { error: 'Acesso negado. Apenas administradores podem liberar códigos.' };
     }
 
-    // 2. BUSCAR CHAVE DISPONÍVEL (Tabela chaves_de_produto)
+    // 2. BUSCAR CHAVE DISPONÍVEL
     const { data: chave, error: chaveError } = await supabaseDB
         .from('chaves_de_produto')
-        .select('chave_mestra, senha_mestra')
+        .select('id, chave_mestra, senha_mestra')
         .eq('produto_id', produtoId) 
         .eq('disponivel', true)
         .maybeSingle(); 
@@ -176,21 +175,18 @@ export async function releaseCode(pedidoId: number, produtoId: string): Promise<
     // 3. O CÓDIGO A SER ENVIADO É A PRÓPRIA CHAVE MESTRA E SENHA
     const codigoCompleto = `Login: ${chave.chave_mestra} | Senha: ${chave.senha_mestra}`;
 
-    // 4. ATUALIZAR O ESTOQUE E O PEDIDO (Transação simulada)
-    
-    // a) ATUALIZA A TABELA DE CHAVES (Marca a chave como indisponível/usada)
+    // 4. ATUALIZAR O ESTOQUE E O PEDIDO
     const { error: stockUpdateError } = await supabaseDB
         .from('chaves_de_produto')
         .update({ 
             disponivel: false 
         })
-        .eq('chave_mestra', chave.chave_mestra); 
+        .eq('id', chave.id); 
 
     if (stockUpdateError) {
         return { error: 'Falha ao marcar chave como usada no estoque.' };
     }
 
-    // b) Atualiza a tabela de pedidos (MARCA COMO ENTREGUE e salva o código)
     const { error: orderUpdateError } = await supabaseDB
         .from('pedidos')
         .update({ 
