@@ -2,14 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-/* SOLUÇÃO FINAL PARA O CSS GLOBAL */
-:root {
-  --color-nexus-dark: #000000;
-  --color-nexus-secondary: #e2e8f0;
+/* SOLUÇÃO FINAL PARA O CSS GLOBAL - FORÇANDO CONTRASTE */
+body {
+    background-color: white; /* Fundo padrão */
+    color: #333333; /* Texto padrão */
+    min-height: 100vh;
 }
 
-body {
-    background-color: var(--color-nexus-dark);
-    color: var(--color-nexus-secondary);
-    min-height: 100vh;
+/* Forçamos o contraste da Navbar para o preto total */
+.bg-black {
+    background-color: black !important;
 }
